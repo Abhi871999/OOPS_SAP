@@ -1,0 +1,107 @@
+*---------------------------Double click event.-------------------------------------*
+
+
+REPORT ZPRG7_OOPS_51.
+
+data : lv_vbeln TYPE vbeln_va.
+
+SELECT-OPTIONS : s_vbeln for lv_vbeln.
+
+TYPES : BEGIN OF lty_vbak,
+     vbeln TYPE vbeln_va,
+     erdat TYPE erdat,
+     erzet TYPE erzet,
+     ernam TYPE ernam,
+     vbtyp TYPE vbtyp,
+    END OF lty_vbak.
+
+  DATA : lt_vbak TYPE TABLE OF lty_vbak,
+         ls_vbak TYPE lty_vbak.
+
+   TYPES : BEGIN OF lty_vbap,
+    vbeln TYPE vbeln_va,
+    posnr TYPE posnr_va,
+    matnr TYPE matnr,
+    END OF lty_vbap.
+
+    DATA : lt_vbap TYPE TABLE OF lty_vbap,
+           ls_vbap TYPE lty_vbap.
+
+  data : lo_alv1 TYPE REF TO cl_salv_table.
+  data : lo_alv2 TYPE REF TO cl_salv_table.
+  data : lo_functions TYPE REF TO CL_SALV_FUNCTIONS_LIST.
+  data : lo_events TYPE REF TO CL_SALV_EVENTS_TABLE.
+
+
+  class CLASS1 DEFINITION.
+  PUBLIC SECTION.
+  METHODS HANDLER FOR EVENT DOUBLE_CLICK of CL_SALV_EVENTS_TABLE IMPORTING row column.
+  ENDCLASS.
+
+  CLASS CLASS1 IMPLEMENTATION.
+  METHOD HANDLER.
+   READ TABLE lt_vbak INTO ls_vbak INDEX row.
+   IF sy-subrc = 0.
+   SELECT vbeln posnr matnr
+   FROM vbap
+   INTO TABLE lt_vbap
+   WHERE vbeln = ls_vbak-vbeln.
+
+   TRY.
+   CALL METHOD CL_SALV_TABLE=>FACTORY
+
+     IMPORTING
+       R_SALV_TABLE   = lo_alv2
+     CHANGING
+       T_TABLE        = LT_VBAP
+       .
+    CATCH CX_SALV_MSG .
+   ENDTRY.
+
+CALL METHOD LO_ALV2->DISPLAY.
+
+   ENDIF.
+
+  ENDMETHOD.
+  ENDCLASS.
+
+
+  START-OF-SELECTION.
+
+  SELECT vbeln erdat erzet ernam vbtyp
+   FROM vbak
+   INTO TABLE lt_vbak
+   WHERE vbeln in s_vbeln.
+
+  TRY.
+  CALL METHOD CL_SALV_TABLE=>FACTORY
+
+    IMPORTING
+      R_SALV_TABLE   = lo_alv1
+    CHANGING
+      T_TABLE        = lt_vbak
+      .
+   CATCH CX_SALV_MSG .
+  ENDTRY.
+
+CALL METHOD LO_ALV1->GET_FUNCTIONS
+  RECEIVING
+    VALUE  = lo_functions.
+
+CALL METHOD LO_FUNCTIONS->SET_ALL
+  EXPORTING
+    VALUE  = IF_SALV_C_BOOL_SAP=>TRUE.
+
+
+CALL METHOD LO_ALV1->GET_EVENT
+  RECEIVING
+    VALUE  = lo_events.
+
+
+data : lo_objects TYPE REF TO class1.
+CREATE OBJECT lo_objects.
+
+set handler lo_objects->handler for lo_events.
+
+
+  CALL METHOD LO_ALV1->DISPLAY.
